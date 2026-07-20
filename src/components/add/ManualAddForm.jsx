@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { submitPendingTransaction } from "../../utils/supabase";
 import { todayStr } from "../../utils/format";
 import { createTransaction, findDuplicateCandidates } from "../../services/transaction";
 import { DEFAULT_CATEGORY_RULES } from "../../constants";
@@ -7,7 +6,7 @@ import { TransactionFormFields } from "../common/TransactionFormFields";
 import { DuplicateCheckModal } from "../common/DuplicateCheckModal";
 import { PrimaryButton } from "../ui/PrimaryButton";
 
-export function ManualAddForm({ categories, allRules, learnedRules, members, pointAccounts, existingTransactions, onAdd, onLearnRule, onBack, isPartnerMode, partnerShareId }) {
+export function ManualAddForm({ categories, allRules, learnedRules, members, pointAccounts, existingTransactions, onAdd, onLearnRule, onBack }) {
   const [type,           setType]          = useState("expense");
   const [amount,         setAmount]        = useState("");
   const [label,          setLabel]         = useState("");
@@ -46,36 +45,32 @@ export function ManualAddForm({ categories, allRules, learnedRules, members, poi
       pointAccountId: payMethod !== "cash" ? payMethod : null,
     });
 
-    // パートナーモード + 共有 → かずおへ申請確認
+    // パートナーモード + 共有支出 → かずおへ申請確認
     if (isPartnerMode && type === "expense" && shareType === "shared" && partnerShareId) {
       const partnerName = members[0]?.name || "かずお";
       const res = window.confirm(
         `「${label}」¥${Number(amount).toLocaleString()}を${partnerName}さんに申請しますか？
 
 ` +
-        `[OK] 申請する（精算に含まれます）
-[キャンセル] 自分の記録のみ`
+        `OK → 申請する（精算に含まれます）
+キャンセル → 自分の記録のみ`
       );
       if (res) {
-        // 彼女の帳簿に登録
         checkAndAdd(tx);
-        // かずおへ申請
         try {
           const submitter = members[1]?.name || "パートナー";
-          await submitPendingTransaction(partnerShareId, { ...tx, _fromPartner: true }, submitter);
+          await submitPendingTransaction(partnerShareId, { ...tx }, submitter);
           alert("✅ 申請しました！");
         } catch(e) {
           alert("申請に失敗しました: " + e.message);
         }
         return;
       }
-      // 「自分の記録のみ」→ shareTypeをpersonalに変えて登録
+      // キャンセル → 個人として登録
       const personalTx = createTransaction({
         date, label, category, memo,
-        amount:  -Number(amount),
-        type:    "expense", source: "manual",
-        shareType: "personal",
-        paidBy:  paidBy || null,
+        amount: -Number(amount), type: "expense", source: "manual",
+        shareType: "personal", paidBy: paidBy || null,
         paymentMethod: payMethod,
         pointAccountId: payMethod !== "cash" ? payMethod : null,
       });

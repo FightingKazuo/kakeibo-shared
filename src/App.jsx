@@ -667,7 +667,7 @@ export default function App() {
           partnerName={members[1]?.name || "パートナー"}
         />;
       case "analysis":
-        return <AnalysisPage transactions={transactions} categories={categories} members={members} pointAccounts={pointAccountsWithBalance} onUpdate={handleUpdate} pendingTxs={pendingTxs} onApprovePending={handleApprovePending} onRejectPending={handleRejectPending} initialTab="analysis" kazuoShareId={kazuoShareId} onKazuoShareIdChange={id => { setKazuoShareId(id); localStorage.setItem("kakeibo_kazuo_share_id", id); }} />;
+        return <AnalysisPage transactions={transactions} categories={categories} members={members} pointAccounts={pointAccountsWithBalance} onUpdate={handleUpdate} pendingTxs={pendingTxs} onApprovePending={handleApprovePending} onRejectPending={handleRejectPending} initialTab="analysis" kazuoShareId={kazuoShareId} onKazuoShareIdChange={id => { setKazuoShareId(id); localStorage.setItem("kakeibo_kazuo_share_id", id); }} budgets={budgets} />;
       case "assets":
         return <AssetsPage
           transactions={transactions}

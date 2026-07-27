@@ -79,6 +79,8 @@ export function AddPage({
             onAdd={onAdd} onDelete={onDelete}
             onLearnRule={onLearnRule} onImportHistoryChange={onImportHistoryChange}
             onBack={() => {}}
+            isPartnerMode={isPartnerMode}
+            partnerShareId={partnerShareId}
           />
         )}
       </div>

@@ -7,9 +7,10 @@ import { analyzePDFWithGemini } from "../../services/geminiOcr";
 import { CSV_FORMATS, DEFAULT_CATEGORY_RULES } from "../../constants";
 import { loadStorage } from "../../utils/storage";
 import { fmtCurrency } from "../../utils/format";
+import { submitPendingTransaction } from "../../utils/supabase";
 import { PrimaryButton } from "../ui/PrimaryButton";
 
-export function CsvImportPage({ categories, existingTransactions, ocrCorrections, learnedRules, members, pointAccounts, importHistory, activeCsvSources: props_activeCsvSources, onActiveCsvSourcesChange, onAdd, onDelete, onLearnRule, onImportHistoryChange, onBack }) {
+export function CsvImportPage({ categories, existingTransactions, ocrCorrections, learnedRules, members, pointAccounts, importHistory, activeCsvSources: props_activeCsvSources, onActiveCsvSourcesChange, onAdd, onDelete, onLearnRule, onImportHistoryChange, onBack, isPartnerMode, partnerShareId }) {
   const [csvFormat,       setCsvFormat]       = useState("generic");
   const [defaultShareType,setDefaultShareType]= useState("shared");
   const [csvDetected,     setCsvDetected]     = useState(null);
@@ -331,12 +332,13 @@ export function CsvImportPage({ categories, existingTransactions, ocrCorrections
     finally { setCsvPdfLoading(false); }
   };
 
-  const execCSVImport = () => {
+  const execCSVImport = async () => {
     const toImport  = csvRows.filter((_, i) => csvChecked[i]);
     const expTotal  = toImport.filter(r => r.type === "expense").reduce((s, r) => s + Math.abs(r.amount), 0);
     const incTotal  = toImport.filter(r => r.type === "income").reduce((s, r) => s + r.amount, 0);
     const payPayAccount = (pointAccounts || []).find(a => a.name === "PayPay");
     const isPayPay  = csvDetected?.includes("PayPay") || csvDetected?.includes("paypay");
+    const shareRequests = []; // かずおへ申請する共有支出（自分払い）
 
     toImport.forEach(r => {
       const enriched  = isPayPay && payPayAccount ? { ...r, pointAccountId: payPayAccount.id, paymentMethod: payPayAccount.id, csvFormatId: "paypay" } : r;
@@ -344,6 +346,10 @@ export function CsvImportPage({ categories, existingTransactions, ocrCorrections
       const withPayer = cleaned.type === "expense"
         ? { ...cleaned, paidBy: selfId, shareType: cleaned.shareType || defaultShareType }
         : cleaned;
+
+      // 共有・自分払いの支出はかずおへの申請対象として記録
+      const isShareRequestTarget = tx => isPartnerMode && partnerShareId
+        && tx.type === "expense" && tx.shareType === "shared" && tx.paidBy === selfId;
 
       if (r.isPointCharge && payPayAccount) {
         onAdd(createTransaction({ ...r, type: "expense", amount: -Math.abs(r.amount), pointAccountId: payPayAccount.id, paymentMethod: payPayAccount.id, shareType: "personal", paidBy: selfId, isTransfer: false, source: "csv", csvFormatId: "paypay" }));
@@ -355,16 +361,33 @@ export function CsvImportPage({ categories, existingTransactions, ocrCorrections
           // 置き換え: OCRを削除してCSVを取り込む
           r.ocrDuplicates.forEach(ocrTx => onDelete?.(ocrTx.id));
           const ocrTx = r.ocrDuplicates[0];
-          onAdd(createTransaction({ ...withPayer, items: ocrTx.items || [], category: ocrTx.category || withPayer.category, shareType: withPayer.shareType, paidBy: selfId, source: "csv", csvFormatId: r.csvFormatId || csvFormatIds[0] || csvFormat || null }));
+          const tx = createTransaction({ ...withPayer, items: ocrTx.items || [], category: ocrTx.category || withPayer.category, shareType: withPayer.shareType, paidBy: selfId, source: "csv", csvFormatId: r.csvFormatId || csvFormatIds[0] || csvFormat || null });
+          onAdd(tx);
+          if (isShareRequestTarget(tx)) shareRequests.push(tx);
         } else {
           // both: OCRはそのまま残してCSVも追加
-          onAdd(createTransaction({ ...withPayer, source: "csv", csvFormatId: r.csvFormatId || csvFormatIds[0] || csvFormat || null }));
+          const tx = createTransaction({ ...withPayer, source: "csv", csvFormatId: r.csvFormatId || csvFormatIds[0] || csvFormat || null });
+          onAdd(tx);
+          if (isShareRequestTarget(tx)) shareRequests.push(tx);
         }
       } else {
-        onAdd(createTransaction({ ...withPayer, source: "csv", csvFormatId: r.csvFormatId || csvFormatIds[0] || csvFormat || null }));
+        const tx = createTransaction({ ...withPayer, source: "csv", csvFormatId: r.csvFormatId || csvFormatIds[0] || csvFormat || null });
+        onAdd(tx);
+        if (isShareRequestTarget(tx)) shareRequests.push(tx);
       }
       if (r.label && r.category) onLearnRule?.(r.label, r.category, r.type || "expense");
     });
+
+    // 共有・自分払いの支出をかずおへ一括申請
+    if (shareRequests.length > 0) {
+      const submitter = members?.[1]?.name || "パートナー";
+      let okCount = 0;
+      for (const tx of shareRequests) {
+        try { await submitPendingTransaction(partnerShareId, tx, submitter); okCount++; }
+        catch (e) { console.error("[CSV] 申請失敗:", tx.label, e); }
+      }
+      if (okCount > 0) alert(`✅ 共有支出 ${okCount}件をかずおさんに申請しました`);
+    }
 
     setCsvSummary({ count: toImport.length, skipped: csvRows.length - toImport.length, expTotal, incTotal });
     setCsvStep("done");

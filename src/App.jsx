@@ -663,7 +663,7 @@ export default function App() {
           activeCsvSources={activeCsvSources}
           onActiveCsvSourcesChange={handleActiveCsvSourcesChange}
           isPartnerMode={isPartnerMode}
-          partnerShareId={localStorage.getItem("kakeibo_partner_share_id") || ""}
+          partnerShareId={kazuoShareId}
           partnerName={members[1]?.name || "パートナー"}
         />;
       case "analysis":

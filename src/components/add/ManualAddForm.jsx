@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { todayStr } from "../../utils/format";
 import { createTransaction, findDuplicateCandidates } from "../../services/transaction";
+import { submitPendingTransaction } from "../../utils/supabase";
 import { DEFAULT_CATEGORY_RULES } from "../../constants";
 import { TransactionFormFields } from "../common/TransactionFormFields";
 import { DuplicateCheckModal } from "../common/DuplicateCheckModal";
 import { PrimaryButton } from "../ui/PrimaryButton";
 
-export function ManualAddForm({ categories, allRules, learnedRules, members, pointAccounts, existingTransactions, onAdd, onLearnRule, onBack }) {
+export function ManualAddForm({ categories, allRules, learnedRules, members, pointAccounts, existingTransactions, onAdd, onLearnRule, onBack, isPartnerMode, partnerShareId }) {
   const [type,           setType]          = useState("expense");
   const [amount,         setAmount]        = useState("");
   const [label,          setLabel]         = useState("");

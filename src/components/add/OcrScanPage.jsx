@@ -182,7 +182,7 @@ export function OcrScanPage({ categories, allRules, learnedRules, members, point
       const partnerAmt = partnerItems.reduce((s, i) => s + i.amount, 0);
       const finalSharedAmt = sharedAmt + (receiptTotal - (sharedAmt + personAmt + partnerAmt));
 
-      const selfId    = members?.[0]?.id || null;
+      const selfId    = members?.[1]?.id || null; // kakeibo-sharedの「自分」= M（members[0]はかずお）
       const isSelfPay = !ocrPaidBy || ocrPaidBy === selfId;
       // ウエルシア20日：自分払いのみWAONから引く（shareAmountが設定済みの場合）
       const waonConsumeAmount = (ocrShareAmount && isSelfPay) ? ocrShareAmount : null;
@@ -307,7 +307,7 @@ export function OcrScanPage({ categories, allRules, learnedRules, members, point
       // ウエルシア20日自動検出
       if (isWelcia20(r.label, r.date)) {
         const waon   = (pointAccounts || []).find(a => a.name === "WAON" || a.id === "pa2");
-        const selfId = members?.[0]?.id || null;
+        const selfId = members?.[1]?.id || null; // kakeibo-sharedの「自分」= M（members[0]はかずお）
         if (waon) {
           setOcrPayMethod(waon.id);
           setOcrPaidBy(selfId);  // 自分払いとして自動設定

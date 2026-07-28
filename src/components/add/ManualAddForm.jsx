@@ -46,12 +46,12 @@ export function ManualAddForm({ categories, allRules, learnedRules, members, poi
       pointAccountId: payMethod !== "cash" ? payMethod : null,
     });
 
-    // パートナーモード + 共有支出 + 自分（M）払い → かずおへ申請確認
-    // ※支払者に「かずお」を明示的に選んだ場合は、単なる記録なので申請しない
-    const selfMemberId = members[1]?.id || null;
-    const isSelfPaying = !paidBy || paidBy === selfMemberId;
-    if (isPartnerMode && type === "expense" && shareType === "shared" && partnerShareId && isSelfPaying) {
-      const partnerName = members[0]?.name || "かずお";
+    // パートナーモード + 共有支出 → かずおへ申請確認
+    // ※members配列の並び順（どちらが0番目か）はデータごとに変わりうるため、
+    //   支払者の判定には依存せず、共有支出なら常に確認する（誤判定を防ぐため）
+    if (isPartnerMode && type === "expense" && shareType === "shared" && partnerShareId) {
+      // members配列の並び順に依存せず、実際に選んだ支払者(paidBy)から名前を特定する
+      const partnerName = members.find(m => m.id && m.id !== paidBy)?.name || "かずお";
       const res = window.confirm(
         `「${label}」¥${Number(amount).toLocaleString()}を${partnerName}さんに申請しますか？
 
@@ -62,7 +62,7 @@ export function ManualAddForm({ categories, allRules, learnedRules, members, poi
       if (res) {
         checkAndAdd(tx);
         try {
-          const submitter = members[1]?.name || "パートナー";
+          const submitter = members.find(m => m.id === paidBy)?.name || "パートナー";
           await submitPendingTransaction(partnerShareId, { ...tx }, submitter);
           alert("✅ 申請しました！");
         } catch(e) {

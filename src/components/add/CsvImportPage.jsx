@@ -26,7 +26,7 @@ export function CsvImportPage({ categories, existingTransactions, ocrCorrections
 
   const geminiKey = loadStorage("GEMINI_API_KEY", "") || "";
   const fileRef   = useRef(null);
-  const selfId    = members?.[0]?.id || null;
+  const selfId    = members?.[1]?.id || null; // kakeibo-sharedの「自分」= M（members[0]はかずお）
 
   const isDupRow     = (r) => r.isDuplicate || r.isCardWithdrawal || (r.ocrDuplicates?.length > 0) || r.isCardWarning || r.isTransfer;
   const isHardDupRow = (r) => false;
@@ -612,4 +612,3 @@ export function CsvImportPage({ categories, existingTransactions, ocrCorrections
     </div>
   );
 }
-

@@ -612,3 +612,4 @@ export function CsvImportPage({ categories, existingTransactions, ocrCorrections
     </div>
   );
 }
+

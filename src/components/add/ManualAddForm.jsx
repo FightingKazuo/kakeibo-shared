@@ -46,8 +46,11 @@ export function ManualAddForm({ categories, allRules, learnedRules, members, poi
       pointAccountId: payMethod !== "cash" ? payMethod : null,
     });
 
-    // パートナーモード + 共有支出 → かずおへ申請確認
-    if (isPartnerMode && type === "expense" && shareType === "shared" && partnerShareId) {
+    // パートナーモード + 共有支出 + 自分（M）払い → かずおへ申請確認
+    // ※支払者に「かずお」を明示的に選んだ場合は、単なる記録なので申請しない
+    const selfMemberId = members[1]?.id || null;
+    const isSelfPaying = !paidBy || paidBy === selfMemberId;
+    if (isPartnerMode && type === "expense" && shareType === "shared" && partnerShareId && isSelfPaying) {
       const partnerName = members[0]?.name || "かずお";
       const res = window.confirm(
         `「${label}」¥${Number(amount).toLocaleString()}を${partnerName}さんに申請しますか？
@@ -173,4 +176,3 @@ export function ManualAddForm({ categories, allRules, learnedRules, members, poi
     </div>
   );
 }
-

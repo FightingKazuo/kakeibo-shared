@@ -173,3 +173,4 @@ export function ManualAddForm({ categories, allRules, learnedRules, members, poi
     </div>
   );
 }
+

@@ -6,14 +6,15 @@ import { DEFAULT_CATEGORY_RULES, STORAGE_KEYS } from "../../constants";
 import { loadStorage, saveStorage } from "../../utils/storage";
 import { runTesseract, runOCRSpace, extractAmount, extractDate, extractStoreName, extractReceiptItems } from "../../services/ocrUtils";
 import { analyzeWithGemini, testGeminiKey, parseOCRTextWithGemini } from "../../services/geminiOcr";
-import { learnTaxRule, describeTaxDiff, calcTaxInclusive } from "../../services/taxLearning";
+import { learnTaxRule, describeTaxDiff, calcTaxInclusive, getAllTaxRules } from "../../services/taxLearning";
+import { saveTaxRules } from "../../utils/supabase";
 import { CategorySuggestion } from "../common/CategorySuggestion";
 import { DuplicateCheckModal } from "../common/DuplicateCheckModal";
 import { PrimaryButton } from "../ui/PrimaryButton";
 import { ItemsAccordion } from "./shared/ItemsAccordion";
 import { CsvOcrDupModal } from "./shared/CsvOcrDupModal";
 
-export function OcrScanPage({ categories, allRules, learnedRules, members, pointAccounts, existingTransactions, onAdd, onDelete, onLearnRule, onBack }) {
+export function OcrScanPage({ categories, allRules, learnedRules, members, pointAccounts, existingTransactions, onAdd, onDelete, onLearnRule, onBack, shareId }) {
   const [ocrStep,       setOcrStep]       = useState("upload");
   const [ocrProgress,   setOcrProgress]   = useState(0);
   const [ocrLabel,      setOcrLabel]      = useState("");
@@ -29,7 +30,7 @@ export function OcrScanPage({ categories, allRules, learnedRules, members, point
   const [ocrQueueIdx,   setOcrQueueIdx]   = useState(0);
   const [ocrPaidBy,     setOcrPaidBy]     = useState("");
   const [ocrPayMethod,  setOcrPayMethod]  = useState("cash");
-  const [ocrShareType,  setOcrShareType]  = useState("shared"); // デフォルト: 共有
+  const [ocrShareType,  setOcrShareType]  = useState("personal"); // デフォルト: 個人
   const [ocrMemo,       setOcrMemo]       = useState("");
   const [ocrShareAmount, setOcrShareAmount] = useState(null); // ウエルシア20日用精算金額
 
@@ -156,6 +157,7 @@ export function OcrScanPage({ categories, allRules, learnedRules, members, point
     const receiptTotal = Number(amount);
     if (items && items.length > 0) {
       learnTaxRule(label, items.reduce((s, i) => s + i.amount, 0), receiptTotal);
+      if (shareId) { try { saveTaxRules(shareId, getAllTaxRules()); } catch {} }
     }
 
     const hist = [{ label, amount, date, cat }, ...ocrHistory].slice(0, 5);
@@ -191,7 +193,7 @@ export function OcrScanPage({ categories, allRules, learnedRules, members, point
         date, label, category: cat, type: "expense", source: "ocr",
         memo: ocrMemo || "",
         paidBy: ocrPaidBy || null,
-        shareType: ocrShareType || "shared",
+        shareType: ocrShareType || "personal",
         paymentMethod: ocrPayMethod,
         pointAccountId: ocrPayMethod !== "cash" ? ocrPayMethod : null,
         shareAmount: ocrShareAmount || null,
@@ -207,7 +209,7 @@ export function OcrScanPage({ categories, allRules, learnedRules, members, point
     }
 
     if (txsToAdd.length === 0) {
-      txsToAdd.push(createTransaction({ date, label, category: cat, amount: -receiptTotal, type: "expense", source: "ocr", shareType: ocrShareType || "shared", paidBy: ocrPaidBy || null, paymentMethod: ocrPayMethod, pointAccountId: ocrPayMethod !== "cash" ? ocrPayMethod : null }));
+      txsToAdd.push(createTransaction({ date, label, category: cat, amount: -receiptTotal, type: "expense", source: "ocr", shareType: ocrShareType || "personal", paidBy: ocrPaidBy || null, paymentMethod: ocrPayMethod, pointAccountId: ocrPayMethod !== "cash" ? ocrPayMethod : null }));
     }
 
     const csvDups = findCsvDuplicates(date, amount, label);
